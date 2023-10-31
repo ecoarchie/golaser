@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/joho/godotenv"
@@ -23,11 +22,17 @@ func main() {
 	}
 
 	// startScraping(store)
+	// startPartialScraping(store)
 
-	a, err := store.GetRecordByBib("99999")
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("athlete = %v\n", a)
+	newScraper := NewScraper(store)
+	
+	server := NewAPIServer(":3000", store, *newScraper)
+	server.Run()
+
+	// a, err := store.GetRecordByBib("99999")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fmt.Printf("athlete = %v\n", a)
 
 }
