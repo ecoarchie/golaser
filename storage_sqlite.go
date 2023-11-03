@@ -2,44 +2,38 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
+	"math"
+	"math/rand"
+	"strings"
 	"time"
 
-	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 )
-type Storage interface {
-	CreateRecord(*Athlete) error
-	GetRecordByBib(bib string) (*Athlete, error)
-	GetHistoryRecords() ([]*Athlete, error)
-	GetLatestHistoryRecord() (*Athlete, error)
-	CreateLaserTable() error
-	GetRecords() ([]*Athlete, error)
-	GetRecordsCount() int
-	ClearHistory()
-	Checkpoint()
-	CreateBulkRecords(a *[]Athlete) error
-}
-type PostgresStore struct {
+
+
+type SqliteStore struct {
 	db *sql.DB
 }
 
-func NewPostgresStore() (*PostgresStore, error) {
-	connStr := "user=postgres dbname=postgres password=postgres sslmode=disable"
-	db, err := sql.Open("postgres", connStr)
+func NewSqliteStore() (*SqliteStore, error) {
+	db, err := sql.Open("sqlite3", "laser.db?cache=shared&mode=rwc&_journal=WAL&_timeout=2000")
 	if err != nil {
 		return nil, err
 	}
+	// defer db.Close()
 
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
 
-	return &PostgresStore{
+	return &SqliteStore{
 		db: db,
 	}, nil
 }
 
-func (s *PostgresStore) Init() error {
+func (s *SqliteStore) Init() error {
 	err := s.CreateLaserTable()
 	if err != nil {
 		return err
@@ -47,42 +41,86 @@ func (s *PostgresStore) Init() error {
 	return s.CreateHistoryTable()
 }
 
-func (s *PostgresStore) CreateLaserTable() error {
+func (s *SqliteStore) CreateLaserTable() error {
 	query := `CREATE TABLE IF NOT EXISTS laser (
-		id SERIAL PRIMARY KEY,
+		id INTEGER PRIMARY KEY,
 		results_bib TEXT NOT NULL UNIQUE,
-		results_first_name TEXT,
-		results_last_name TEXT,
+		results_first_name TEXT NOT NULL,
+		results_last_name TEXT NOT NULL,
 		results_time TEXT,
 		results_gun_time TEXT
 	);`
+
+	queryClear := `DELETE FROM laser`
 	_, err := s.db.Exec(query)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.Exec(queryClear)
 	return err
 }
 
-func (s *PostgresStore) CreateHistoryTable() error {
+func (s *SqliteStore) CreateHistoryTable() error {
 	query := `CREATE TABLE IF NOT EXISTS history (
-		id SERIAL PRIMARY KEY,
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		bib TEXT NOT NULL UNIQUE REFERENCES laser(results_bib),
 		created_at TIMESTAMP NOT NULL
 	);`
+	queryClear := `DELETE FROM history`
 	_, err := s.db.Exec(query)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.Exec(queryClear)
 	return err
 }
 
-func (s *PostgresStore) CreateRecord(a *Athlete) error {
+func (s *SqliteStore) CreateRecord(a *Athlete) error {
+
+	randID := rand.Intn(math.MaxInt64)
 	query := `
-		INSERT INTO laser (results_bib, results_first_name, results_last_name, results_time, results_gun_time)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO laser (id, results_bib, results_first_name, results_last_name, results_time, results_gun_time)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		;`
-	_, err := s.db.Exec(query, a.ResultsBib, a.ResultsFirstName, a.ResultsLastName, a.ResultsTime, a.ResultsGunTime)
+	_, err := s.db.Exec(query, randID, a.ResultsBib, a.ResultsFirstName, a.ResultsLastName, a.ResultsTime, a.ResultsGunTime)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *PostgresStore) CreateHistoryRecord(a *Athlete) error {
+func (s *SqliteStore) CreateBulkRecords(a *[]Athlete) error {
+	valueStrings := make([]string, 0, len(*a))
+	valueArgs := make([]interface{}, 0, len(*a) * 6)
+
+	for _, athlete := range *a {
+		valueStrings = append(valueStrings, "(?, ?, ?, ?, ?, ?)")
+		valueArgs = append(valueArgs, rand.Intn(math.MaxInt64))
+		valueArgs = append(valueArgs, athlete.ResultsBib)
+		valueArgs = append(valueArgs, athlete.ResultsFirstName)
+		valueArgs = append(valueArgs, athlete.ResultsLastName)
+		valueArgs = append(valueArgs, athlete.ResultsTime)
+		valueArgs = append(valueArgs, athlete.ResultsGunTime)
+	}
+
+	// randID := rand.Intn(math.MaxInt64)
+	query := fmt.Sprintf("INSERT INTO laser (id, results_bib, results_first_name, results_last_name, results_time, results_gun_time) VALUES %s;", strings.Join(valueStrings, ","))
+
+	_, err := s.db.Exec(query, valueArgs...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *SqliteStore) Checkpoint() {
+	_, err := s.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
+if err != nil {
+ panic(err)
+}
+}
+
+func (s *SqliteStore) CreateHistoryRecord(a *Athlete) error {
 	query := `
 		INSERT INTO history (bib, created_at)
 		VALUES ($1, $2)
@@ -94,7 +132,7 @@ func (s *PostgresStore) CreateHistoryRecord(a *Athlete) error {
 	return nil
 }
 
-func (s *PostgresStore) GetHistoryRecords() ([]*Athlete, error) {
+func (s *SqliteStore) GetHistoryRecords() ([]*Athlete, error) {
 	query := `
 		SELECT history.bib,
 		laser.results_first_name, 
@@ -133,7 +171,7 @@ func (s *PostgresStore) GetHistoryRecords() ([]*Athlete, error) {
 	return athletes, nil
 }
 
-func (s *PostgresStore) GetLatestHistoryRecord() (*Athlete, error) {
+func (s *SqliteStore) GetLatestHistoryRecord() (*Athlete, error) {
 	query := `
 		SELECT history.bib,
 		laser.results_first_name, 
@@ -163,21 +201,7 @@ func (s *PostgresStore) GetLatestHistoryRecord() (*Athlete, error) {
 
 }
 
-func processTimeForRecord(a *Athlete) error {
-	gunTime, err := processTimeStr(a.ResultsGunTime)
-	if err != nil {
-		return err
-	}
-	netTime, err := processTimeStr(a.ResultsTime)
-	if err != nil {
-		return err
-	}
-	a.ResultsGunTime = gunTime
-	a.ResultsTime = netTime
-	return nil
-}
-
-func (s *PostgresStore) GetRecordByBib(bib string) (*Athlete, error) {
+func (s *SqliteStore) GetRecordByBib(bib string) (*Athlete, error) {
 	query := `
 		SELECT results_bib, results_first_name, results_last_name, results_time, results_gun_time
 		FROM laser WHERE results_bib = $1;
@@ -202,22 +226,7 @@ func (s *PostgresStore) GetRecordByBib(bib string) (*Athlete, error) {
 	return a, nil
 }
 
-func processTimeStr(timeToParse string) (string, error) {
-	t, err := time.Parse(time.TimeOnly, timeToParse)
-	if err != nil {
-		return "", err
-	}
-
-	ms := t.Nanosecond()
-	truncTime := t.Truncate(time.Second)
-	if ms > 0 {
-		truncTime = truncTime.Add(time.Second)
-	}
-	return truncTime.Format(time.TimeOnly), nil
-
-}
-
-func (s *PostgresStore) GetRecords() ([]*Athlete, error) {
+func (s *SqliteStore) GetRecords() ([]*Athlete, error) {
 	query := `
 		SELECT * FROM laser;
 	`
@@ -225,7 +234,6 @@ func (s *PostgresStore) GetRecords() ([]*Athlete, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Close()
 
 	athletes := []*Athlete{}
 	for resp.Next() {
@@ -245,7 +253,7 @@ func (s *PostgresStore) GetRecords() ([]*Athlete, error) {
 	return athletes, nil
 }
 
-func (s *PostgresStore) GetRecordsCount() int {
+func (s *SqliteStore) GetRecordsCount() int {
 	var count int
 	query := `SELECT COUNT(*) FROM laser`
 	resp := s.db.QueryRow(query)
@@ -256,8 +264,8 @@ func (s *PostgresStore) GetRecordsCount() int {
 	return count
 }
 
-func (s *PostgresStore) ClearHistory() {
-	query := `TRUNCATE TABLE history;`
+func (s *SqliteStore) ClearHistory() {
+	query := `DELETE FROM history;`
 	_, err := s.db.Exec(query)
 	if err != nil {
 		log.Fatal(err)

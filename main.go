@@ -2,17 +2,17 @@ package main
 
 import (
 	"log"
-
-	"github.com/joho/godotenv"
+	// "github.com/joho/godotenv"
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file", err)
-	}
+	// err := godotenv.Load()
+	// if err != nil {
+	// 	log.Fatal("Error loading .env file", err)
+	// }
 
-	store, err := NewPostgresStore()
+	// store, err := NewPostgresStore()
+	store, err := NewSqliteStore()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -25,6 +25,8 @@ func main() {
 	// startPartialScraping(store)
 
 	newScraper := NewScraper(store)
+	// newScraper := new(Scraper)
+	// newScraper := NewScraperPsql(store)
 	
 	server := NewAPIServer(":3000", store, *newScraper)
 	server.Run()

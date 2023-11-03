@@ -12,3 +12,13 @@ type Athlete struct {
 		ResultsTime string `json:"results_time"`
 		ResultsGunTime string `json:"results_gun_time"`
 }
+
+type EventInfoResp struct {
+	Event Event `json:"event"`
+}
+
+type Event struct {
+	EventID string `json:"event_id"`
+	EventName string `json:"event_name"`
+	StartTime string `json:"event_start_time"`
+}
