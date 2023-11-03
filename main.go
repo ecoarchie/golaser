@@ -30,11 +30,4 @@ func main() {
 	
 	server := NewAPIServer(":3000", store, *newScraper)
 	server.Run()
-
-	// a, err := store.GetRecordByBib("99999")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// fmt.Printf("athlete = %v\n", a)
-
 }

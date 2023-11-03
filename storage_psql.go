@@ -8,16 +8,16 @@ import (
 	_ "github.com/lib/pq"
 )
 type Storage interface {
-	CreateRecord(*Athlete) error
-	GetRecordByBib(bib string) (*Athlete, error)
+	// CreateLaserTable() error
+	// CreateRecord(*Athlete) error
+	// GetRecords() ([]*Athlete, error)
 	GetHistoryRecords() ([]*Athlete, error)
+	CreateBulkRecords(a *[]Athlete) error
+	GetRecordByBib(bib string) (*Athlete, error)
 	GetLatestHistoryRecord() (*Athlete, error)
-	CreateLaserTable() error
-	GetRecords() ([]*Athlete, error)
 	GetRecordsCount() int
 	ClearHistory()
 	Checkpoint()
-	CreateBulkRecords(a *[]Athlete) error
 }
 type PostgresStore struct {
 	db *sql.DB
@@ -123,7 +123,7 @@ func (s *PostgresStore) GetHistoryRecords() ([]*Athlete, error) {
 		}
 		athletes = append(athletes, a)
 	}
-	// fmt.Printf("%+v\n", athletes)
+
 	for _, a := range athletes {
 		err := processTimeForRecord(a)
 		if err != nil {

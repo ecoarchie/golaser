@@ -23,12 +23,6 @@ func NewScraper(store Storage) *Scraper {
 	}
 }
 
-// func NewScraperSqlite(store *SqliteStore) *Scraper {
-// 	return &Scraper{
-// 		s: store,
-// 	}
-// }
-
 type ChronoTrackURLConfig struct {
 	source string
 	clientID string
@@ -85,9 +79,7 @@ func EventInfoURL (opts ChronoTrackURLConfig) string {
 
 func (scraper *Scraper) CheckEventURL() (*Event, error) {
 	config := scraper.config
-	fmt.Printf("config = %+v\n", config)
 	url := EventInfoURL(config)
-	fmt.Printf("url = %s\n", url)
 
 	authHeader := config.authHeader
 
@@ -118,11 +110,10 @@ func (scraper *Scraper) CheckEventURL() (*Event, error) {
 	if err != nil {
 		return nil, fmt.Errorf("неверно указан ID соревнования")
 	}
-	fmt.Printf("responsse = %+v\n", res)
 	return &res.Event, nil
 }
 
-func (scraper *Scraper) getTotalPagesForRequest(pageSize int) int {
+func (scraper *Scraper) getTotalPagesForRequest(pageSize int) (totalRowsCount int, totalPagesCount int) {
 	config := scraper.config
 	config.size = 1
 	config.page = 1
@@ -140,20 +131,23 @@ func (scraper *Scraper) getTotalPagesForRequest(pageSize int) int {
 	defer resp.Body.Close()
 
 	rowQty := resp.Header.Get("x-ctlive-row-count")
-	rows, err := strconv.Atoi(rowQty)
+	totalRowsCount, err = strconv.Atoi(rowQty)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return rows / pageSize + 1
-
+ totalPagesCount = totalRowsCount / pageSize + 1
+	return totalRowsCount, totalPagesCount
 }
 
 func (scraper *Scraper) StartScraping() {
 	config := scraper.config
-	pageQty := scraper.getTotalPagesForRequest(config.size)
-	// pageQty := 10
-	fmt.Printf("pageQty = %d\n", pageQty)
+	totalRecords, pageQty := scraper.getTotalPagesForRequest(config.size)
+	fmt.Printf("всего страниц = %d\n", pageQty)
 
+	recordsInDB := scraper.store.GetRecordsCount()
+	if totalRecords == recordsInDB {
+		return 
+	}
 	wg := &sync.WaitGroup{}
 	for i := 1; i <= pageQty; i++ {
 		config.page = i
@@ -166,11 +160,14 @@ func (scraper *Scraper) StartScraping() {
 
 func (scraper *Scraper) StartPartialScraping() int {
 	config := scraper.config
-	pageQty := scraper.getTotalPagesForRequest(config.size)
-	fmt.Printf("pageQty = %d\n", pageQty)
+	totalRecords ,pageQty := scraper.getTotalPagesForRequest(config.size)
+	fmt.Printf("всего страниц = %d\n", pageQty)
 
-	countBefore := scraper.store.GetRecordsCount()
-	fromPage := countBefore / config.size + 1
+	recordsInDB := scraper.store.GetRecordsCount()
+	if totalRecords == recordsInDB {
+		return 0
+	}
+	fromPage := recordsInDB / config.size + 1
 	wg := &sync.WaitGroup{}
 	for i := fromPage; i <= pageQty; i++ {
 		config.page = i
@@ -179,11 +176,10 @@ func (scraper *Scraper) StartPartialScraping() int {
 		go scraper.scrape(url, wg)
 	}
 	wg.Wait()
-	return scraper.store.GetRecordsCount() - countBefore
+	return scraper.store.GetRecordsCount() - recordsInDB
 }
 
 func (scraper *Scraper) scrape(url string, wg *sync.WaitGroup) {
-	// start := time.Now()
 	defer wg.Done()
 
 	authHeader := scraper.config.authHeader
@@ -212,13 +208,12 @@ func (scraper *Scraper) scrape(url string, wg *sync.WaitGroup) {
 		log.Fatal("cannot parse json", err)
 	}
 
-	pageNum := resp.Header.Get("X-Ctlive-Current-Page")
-	fmt.Printf("Qty of records = %d on page %s\n", len(res.EventResults), pageNum)
+	// pageNum := resp.Header.Get("X-Ctlive-Current-Page")
+	// fmt.Printf("Количество записей = %d на странице %s\n", len(res.EventResults), pageNum)
 
-	for i := 0; i < len(res.EventResults); i++ {
-		scraper.store.CreateRecord(&res.EventResults[i])
-	}
-	// s.CreateBulkRecords(&res.EventResults)
+	// for i := 0; i < len(res.EventResults); i++ {
+	// 	scraper.store.CreateRecord(&res.EventResults[i])
+	// }
+	scraper.store.CreateBulkRecords(&res.EventResults)
 	scraper.store.Checkpoint()
-	// fmt.Printf("Time past = %v\n", time.Since(start))
 }

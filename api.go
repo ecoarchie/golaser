@@ -38,6 +38,7 @@ func (s *APIServer) Run() {
 	router.HandleFunc("/config", s.HandleCreateConfig)
 
 	log.Println("JSON API server running on port: ", s.listenAddr)
+	log.Printf("http://localhost%s\n", s.listenAddr)
 	http.ListenAndServe(s.listenAddr, router)
 }
 
@@ -52,7 +53,6 @@ var (
 
 func (s *APIServer) handleIndexPage(w http.ResponseWriter, r *http.Request) {
 	page, ok := pages[r.URL.Path]
-	fmt.Println(page)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -68,25 +68,17 @@ func (s *APIServer) handleIndexPage(w http.ResponseWriter, r *http.Request) {
 		"Records": {},
 	}
 	data["Records"] = records
-	// fmt.Printf("%+v\n", data)
 	templ.Execute(w, data)
 }
 
 func (s *APIServer) handleSearchBib(w http.ResponseWriter, r *http.Request) {
 	bib := r.PostFormValue("bib")
 	a, err := s.store.GetRecordByBib(bib)
-	// fmt.Printf("record = %v\n", a)
 	if err != nil {
 		fmt.Println("error", err)
 	}
-	// fmt.Printf("%+v\n", a)
 	var htmlStr string
 	if a == nil {
-			// <tr class='table-danger'>
-			// 	<th scope='row'>%s</th>
-			// 	<td>Участник не найден</td>
-			// 	<td>-</td>
-			// </tr>
 		htmlStr = fmt.Sprintf(`
 			<button type='button' class='list-group-item list-group-item-action list-group-item-danger' id='copy-data'>Участник %s не найден</button>
 			`, bib)
@@ -107,7 +99,6 @@ func (s *APIServer) HandleArchiveRecord(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		fmt.Println("error", err)
 	}
-	// fmt.Printf("%+v\n", a)
 	htmlStr := fmt.Sprintf(`
           <tr class='table-secondary'>
             <th scope='row'>%s</th>

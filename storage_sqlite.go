@@ -22,7 +22,6 @@ func NewSqliteStore() (*SqliteStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	// defer db.Close()
 
 	if err := db.Ping(); err != nil {
 		return nil, err
@@ -90,11 +89,13 @@ func (s *SqliteStore) CreateRecord(a *Athlete) error {
 }
 
 func (s *SqliteStore) CreateBulkRecords(a *[]Athlete) error {
-	valueStrings := make([]string, 0, len(*a))
+	// valueStrings := make([]string, 0, len(*a))
+	var valueStrings string
 	valueArgs := make([]interface{}, 0, len(*a) * 6)
 
+	valueStrings = strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?),", len(*a)), ",")
 	for _, athlete := range *a {
-		valueStrings = append(valueStrings, "(?, ?, ?, ?, ?, ?)")
+		// valueStrings = append(valueStrings, "(?, ?, ?, ?, ?, ?)")
 		valueArgs = append(valueArgs, rand.Intn(math.MaxInt64))
 		valueArgs = append(valueArgs, athlete.ResultsBib)
 		valueArgs = append(valueArgs, athlete.ResultsFirstName)
@@ -102,9 +103,10 @@ func (s *SqliteStore) CreateBulkRecords(a *[]Athlete) error {
 		valueArgs = append(valueArgs, athlete.ResultsTime)
 		valueArgs = append(valueArgs, athlete.ResultsGunTime)
 	}
+	// this query for append option to create valueStrings
+	// query := fmt.Sprintf("INSERT INTO laser (id, results_bib, results_first_name, results_last_name, results_time, results_gun_time) VALUES %s;", strings.Join(valueStrings, ","))
 
-	// randID := rand.Intn(math.MaxInt64)
-	query := fmt.Sprintf("INSERT INTO laser (id, results_bib, results_first_name, results_last_name, results_time, results_gun_time) VALUES %s;", strings.Join(valueStrings, ","))
+	query := fmt.Sprintf("INSERT INTO laser (id, results_bib, results_first_name, results_last_name, results_time, results_gun_time) VALUES %s;", valueStrings)
 
 	_, err := s.db.Exec(query, valueArgs...)
 	if err != nil {
@@ -161,7 +163,7 @@ func (s *SqliteStore) GetHistoryRecords() ([]*Athlete, error) {
 		}
 		athletes = append(athletes, a)
 	}
-	// fmt.Printf("%+v\n", athletes)
+
 	for _, a := range athletes {
 		err := processTimeForRecord(a)
 		if err != nil {
