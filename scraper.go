@@ -12,24 +12,24 @@ import (
 )
 
 type Scraper struct {
-	store Storage
+	store  Storage
 	config ChronoTrackURLConfig
 }
 
 func NewScraper(store Storage) *Scraper {
 	return &Scraper{
-		store: store,
+		store:  store,
 		config: *new(ChronoTrackURLConfig),
 	}
 }
 
 type ChronoTrackURLConfig struct {
-	source string
-	clientID string
-	eventID string
-	size int
-	page int
-	columns string
+	source     string
+	clientID   string
+	eventID    string
+	size       int
+	page       int
+	columns    string
 	authHeader string
 }
 
@@ -41,25 +41,25 @@ func (c *ChronoTrackURLConfig) Default(login string, password string, clientID s
 	hash := base64.StdEncoding.EncodeToString([]byte(strToHash))
 	authHeader := fmt.Sprintf("Basic %s", hash)
 	columns := fmt.Sprintf("%s,%s,%s,%s,%s,%s",
-			"results_bib",
-			"results_first_name",
-			"results_last_name",
-			"results_time",
-			"results_gun_time",
-			"results_race_name",
-		)
-		return &ChronoTrackURLConfig{
-			source : source,
-			clientID: clientID,
-			eventID: eventID,
-			size: size,
-			page: page,
-			columns: columns,
-			authHeader: authHeader,
-		}
+		"results_bib",
+		"results_first_name",
+		"results_last_name",
+		"results_time",
+		"results_gun_time",
+		"results_race_name",
+	)
+	return &ChronoTrackURLConfig{
+		source:     source,
+		clientID:   clientID,
+		eventID:    eventID,
+		size:       size,
+		page:       page,
+		columns:    columns,
+		authHeader: authHeader,
+	}
 }
 
-func ResultsURL (opts ChronoTrackURLConfig) string {
+func ResultsURL(opts ChronoTrackURLConfig) string {
 	return fmt.Sprintf("%s/%s/results?client_id=%s&size=%d&page=%d&columns=%s",
 		opts.source,
 		opts.eventID,
@@ -69,7 +69,7 @@ func ResultsURL (opts ChronoTrackURLConfig) string {
 		opts.columns)
 }
 
-func EventInfoURL (opts ChronoTrackURLConfig) string {
+func EventInfoURL(opts ChronoTrackURLConfig) string {
 	return fmt.Sprintf("%s/%s?client_id=%s",
 		opts.source,
 		opts.eventID,
@@ -98,7 +98,7 @@ func (scraper *Scraper) CheckEventURL() (*Event, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("проверьте правильность clientID.\n%s", resp.Status) 
+		return nil, fmt.Errorf("проверьте правильность clientID.\n%s", resp.Status)
 	}
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -135,7 +135,7 @@ func (scraper *Scraper) getTotalPagesForRequest(pageSize int) (totalRowsCount in
 	if err != nil {
 		log.Fatal(err)
 	}
- totalPagesCount = totalRowsCount / pageSize + 1
+	totalPagesCount = totalRowsCount/pageSize + 1
 	return totalRowsCount, totalPagesCount
 }
 
@@ -146,7 +146,7 @@ func (scraper *Scraper) StartScraping() {
 
 	recordsInDB := scraper.store.GetRecordsCount()
 	if totalRecords == recordsInDB {
-		return 
+		return
 	}
 	wg := &sync.WaitGroup{}
 	for i := 1; i <= pageQty; i++ {
@@ -160,14 +160,14 @@ func (scraper *Scraper) StartScraping() {
 
 func (scraper *Scraper) StartPartialScraping() int {
 	config := scraper.config
-	totalRecords ,pageQty := scraper.getTotalPagesForRequest(config.size)
+	totalRecords, pageQty := scraper.getTotalPagesForRequest(config.size)
 	fmt.Printf("всего страниц = %d\n", pageQty)
 
 	recordsInDB := scraper.store.GetRecordsCount()
 	if totalRecords == recordsInDB {
 		return 0
 	}
-	fromPage := recordsInDB / config.size + 1
+	fromPage := recordsInDB/config.size + 1
 	wg := &sync.WaitGroup{}
 	for i := fromPage; i <= pageQty; i++ {
 		config.page = i

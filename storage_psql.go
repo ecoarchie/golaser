@@ -7,6 +7,7 @@ import (
 
 	_ "github.com/lib/pq"
 )
+
 type Storage interface {
 	// CreateLaserTable() error
 	// CreateRecord(*Athlete) error
@@ -146,12 +147,12 @@ func (s *PostgresStore) GetLatestHistoryRecord() (*Athlete, error) {
 	row := s.db.QueryRow(query)
 	a := new(Athlete)
 	err := row.Scan(
-			&a.ResultsBib,
-			&a.ResultsFirstName,
-			&a.ResultsLastName,
-			&a.ResultsTime,
-			&a.ResultsGunTime,
-		)
+		&a.ResultsBib,
+		&a.ResultsFirstName,
+		&a.ResultsLastName,
+		&a.ResultsTime,
+		&a.ResultsGunTime,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -185,12 +186,12 @@ func (s *PostgresStore) GetRecordByBib(bib string) (*Athlete, error) {
 	res := s.db.QueryRow(query, bib)
 	a := new(Athlete)
 	err := res.Scan(
-			&a.ResultsBib,
-			&a.ResultsFirstName,
-			&a.ResultsLastName,
-			&a.ResultsTime,
-			&a.ResultsGunTime,
-		)
+		&a.ResultsBib,
+		&a.ResultsFirstName,
+		&a.ResultsLastName,
+		&a.ResultsTime,
+		&a.ResultsGunTime,
+	)
 	if err != nil {
 		return nil, err
 	}

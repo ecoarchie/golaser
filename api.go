@@ -12,18 +12,17 @@ import (
 	"github.com/gorilla/mux"
 )
 
-
 type APIServer struct {
 	listenAddr string
-	store Storage
-	scraper Scraper
+	store      Storage
+	scraper    Scraper
 }
 
 func NewAPIServer(listenAddr string, store Storage, scraper Scraper) *APIServer {
 	return &APIServer{
 		listenAddr: listenAddr,
-		store: store,
-		scraper: scraper,
+		store:      store,
+		scraper:    scraper,
 	}
 }
 
@@ -34,6 +33,8 @@ func (s *APIServer) Run() {
 	router.HandleFunc("/search", s.handleSearchBib)
 	router.HandleFunc("/archive", s.HandleArchiveRecord)
 	router.HandleFunc("/pupdate", s.HandlePartialDBUpdate)
+	router.HandleFunc("/auto-update-start", s.HandleStartAutoDBUpdate)
+	router.HandleFunc("/auto-update-stop", s.HandleStopAutoDBUpdate)
 	router.HandleFunc("/history", s.HandleDeleteHistory)
 	router.HandleFunc("/config", s.HandleCreateConfig)
 
@@ -128,7 +129,7 @@ func (s *APIServer) HandlePartialDBUpdate(w http.ResponseWriter, r *http.Request
 		return
 	}
 	recordsAdded := s.scraper.StartPartialScraping()
-	updTime := time.Now().Local().Truncate(time.Second)
+	updTime := time.Now().Format(time.TimeOnly)
 	htmlStr := fmt.Sprintf(`
 		<div class="alert alert-info" role="alert">
 		<h4 class="alert-heading">База данных обновлена!</h4>
@@ -139,12 +140,95 @@ func (s *APIServer) HandlePartialDBUpdate(w http.ResponseWriter, r *http.Request
 	templ.Execute(w, nil)
 }
 
+func (s *APIServer) HandleStartAutoDBUpdate(w http.ResponseWriter, r *http.Request) {
+	if s.scraper.config.clientID == "" || s.scraper.config.eventID == "" || s.scraper.config.source == "" {
+		alertDangerResponse(w, "Соревнование не настроено", "Заполните поля в разделе 'Настройка соревнования'")
+		return
+	}
+	// recordsAdded := s.scraper.StartPartialScraping()
+	nextUpdTime := time.Now().Add(time.Minute * 5).Format(time.TimeOnly)
+	htmlStr := fmt.Sprintf(`
+		<div class="alert alert-info" role="alert">
+		<h4 class="alert-heading">Автообновление запущено</h4>
+		<p>База данных будет обновляться каждые 5 минут</p>
+		<p>Следующее обновление в <strong>%s</strong></p>
+		</div>
+
+		<button type="button"
+		hx-post="/pupdate" 
+		hx-target="#notification" 
+		hx-swap="innerHTML"
+		hx-swap-oob="true"
+		hx-indicator="#spinner"
+		hx-trigger="every 5m, click"
+		id="btn-manual-update"
+		class="btn btn-primary">
+			Обновить базу
+			<div class="htmx-indicator spinner-border spinner-border-sm" role="status" id="spinner"></div>
+		</button>
+
+		<button type="button" 
+		hx-post="/auto-update-stop" 
+		hx-target="#notification" 
+		hx-swap="innerHTML" 
+		hx-swap-oob="true"
+		hx-indicator="#spinner-auto" 
+		id="btn-auto-update" 
+		class="btn btn-warning">
+			Остановить
+		</button>
+	`, nextUpdTime)
+	templ, _ := template.New("count").Parse(htmlStr)
+	templ.Execute(w, nil)
+}
+
+func (s *APIServer) HandleStopAutoDBUpdate(w http.ResponseWriter, r *http.Request) {
+	if s.scraper.config.clientID == "" || s.scraper.config.eventID == "" || s.scraper.config.source == "" {
+		alertDangerResponse(w, "Соревнование не настроено", "Заполните поля в разделе 'Настройка соревнования'")
+		return
+	}
+	// recordsAdded := s.scraper.StartPartialScraping()
+	updTime := time.Now().Format(time.TimeOnly)
+	htmlStr := fmt.Sprintf(`
+		<div class="alert alert-info" role="alert">
+		<h4 class="alert-heading">Автообновление остановлено</h4>
+		<p>%s</p>
+		</div>
+
+		<button type="button"
+		hx-post="/pupdate" 
+		hx-target="#notification" 
+		hx-swap="innerHTML"
+		hx-swap-oob="true"
+		hx-indicator="#spinner"
+		hx-trigger="click"
+		id="btn-manual-update"
+		class="btn btn-primary">
+			Обновить базу
+			<div class="htmx-indicator spinner-border spinner-border-sm" role="status" id="spinner"></div>
+		</button>
+
+		<button type="button" 
+		hx-post="/auto-update-start" 
+		hx-target="#notification" 
+		hx-swap="innerHTML" 
+		hx-swap-oob="true"
+		hx-indicator="#spinner-auto" 
+		id="btn-auto-update" 
+		class="btn btn-secondary">
+			Автообновление
+		</button>
+	`, updTime)
+	templ, _ := template.New("count").Parse(htmlStr)
+	templ.Execute(w, nil)
+}
+
 func (s *APIServer) HandleDeleteHistory(w http.ResponseWriter, r *http.Request) {
 	s.store.ClearHistory()
 	// http.Redirect(w, r, "/index", http.StatusSeeOther)
 }
 
-func (s *APIServer) HandleCreateConfig (w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) HandleCreateConfig(w http.ResponseWriter, r *http.Request) {
 	login := r.PostFormValue("login")
 	password := r.PostFormValue("password")
 	clienID := r.PostFormValue("clientID")
@@ -161,7 +245,7 @@ func (s *APIServer) HandleCreateConfig (w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		log.Fatal(err)
 	}
-	startTime := time.Unix(int64(timeParsed), 0).Local()
+	startTime := time.Unix(int64(timeParsed), 0).Format(time.TimeOnly)
 	htmlStr := fmt.Sprintf(`
 		<div class="alert alert-info" role="alert">
 		<h4 class="alert-heading">Конфигурация Chronotrack API настроена!</h4>

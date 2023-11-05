@@ -27,7 +27,7 @@ func main() {
 	newScraper := NewScraper(store)
 	// newScraper := new(Scraper)
 	// newScraper := NewScraperPsql(store)
-	
+
 	server := NewAPIServer(":3000", store, *newScraper)
 	server.Run()
 }

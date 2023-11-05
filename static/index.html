@@ -16,7 +16,7 @@
 <div class="container-fluid">
   <div class="row">
     <div class="col 6">
-      <h3>Поиск участника</h3>
+      <h3 id="race-name">Поиск участника</h3>
     </div>
     <div class="col 6">
 
@@ -65,7 +65,7 @@
   <div class="col">
     <form class="row" hx-post="/search" hx-target="#participants" hx-swap="innerHTML">
       <div class="col-sm-4">
-        <input type="text" class="form-control" id="bib-input" name="bib" aria-describedby="bibHelp">
+        <input type="number" class="form-control" id="bib-input" name="bib" aria-describedby="bibHelp">
         <div id="bibHelp" class="form-text">Искать по стартовому номеру.</div>
       </div>
       <!-- <p> -->
@@ -74,10 +74,12 @@
         </div>
         <div class="col-auto">
           <!-- can add this modifier to run api request automatically hx-trigger="every 1m" -->
-          <button type="button" hx-post="/pupdate" hx-target="#notification" hx-swap="innerHTML" hx-indicator="#spinner"  id="btn-cp-bib" class="btn btn-primary">
+          <button type="button" hx-post="/pupdate" hx-target="#notification" hx-swap="innerHTML" hx-indicator="#spinner"  id="btn-manual-update" class="btn btn-primary">
             Обновить базу
-            <div class="htmx-indicator spinner-border spinner-border-sm" role="status" id="spinner">
-            </div>
+            <div class="htmx-indicator spinner-border spinner-border-sm" role="status" id="spinner"></div>
+          </button>
+          <button type="button" hx-post="/auto-update-start" hx-target="#notification" hx-swap="innerHTML" hx-indicator="#spinner-auto"  id="btn-auto-update" class="btn btn-secondary">
+            Автообновление
           </button>
         </div>
       <!-- </p> -->
@@ -102,7 +104,7 @@
       <h3>История поиска</h3>
     </div>
     <div class="col 3">
-      <button type="button" hx-delete="/history" hx-target="#archive" hx-swap="innerHTML" id="btn-cp-bib" class="btn btn-secondary">Очистить историю</button>
+      <button type="button" hx-delete="/history" hx-target="#archive" hx-swap="innerHTML" id="btn-delete-history" class="btn btn-secondary">Очистить историю</button>
     </div>
 
     </div>

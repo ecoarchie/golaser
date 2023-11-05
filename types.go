@@ -5,12 +5,12 @@ type Response struct {
 }
 
 type Athlete struct {
-		ID string
-		ResultsBib string `json:"results_bib"`
-		ResultsFirstName string `json:"results_first_name"`
-		ResultsLastName string `json:"results_last_name"`
-		ResultsTime string `json:"results_time"`
-		ResultsGunTime string `json:"results_gun_time"`
+	ID               string
+	ResultsBib       string `json:"results_bib"`
+	ResultsFirstName string `json:"results_first_name"`
+	ResultsLastName  string `json:"results_last_name"`
+	ResultsTime      string `json:"results_time"`
+	ResultsGunTime   string `json:"results_gun_time"`
 }
 
 type EventInfoResp struct {
@@ -18,7 +18,7 @@ type EventInfoResp struct {
 }
 
 type Event struct {
-	EventID string `json:"event_id"`
+	EventID   string `json:"event_id"`
 	EventName string `json:"event_name"`
 	StartTime string `json:"event_start_time"`
 }

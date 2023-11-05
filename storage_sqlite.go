@@ -12,7 +12,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-
 type SqliteStore struct {
 	db *sql.DB
 }
@@ -91,7 +90,7 @@ func (s *SqliteStore) CreateRecord(a *Athlete) error {
 func (s *SqliteStore) CreateBulkRecords(a *[]Athlete) error {
 	// valueStrings := make([]string, 0, len(*a))
 	var valueStrings string
-	valueArgs := make([]interface{}, 0, len(*a) * 6)
+	valueArgs := make([]interface{}, 0, len(*a)*6)
 
 	valueStrings = strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?),", len(*a)), ",")
 	for _, athlete := range *a {
@@ -117,9 +116,9 @@ func (s *SqliteStore) CreateBulkRecords(a *[]Athlete) error {
 
 func (s *SqliteStore) Checkpoint() {
 	_, err := s.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
-if err != nil {
- panic(err)
-}
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (s *SqliteStore) CreateHistoryRecord(a *Athlete) error {
@@ -186,12 +185,12 @@ func (s *SqliteStore) GetLatestHistoryRecord() (*Athlete, error) {
 	row := s.db.QueryRow(query)
 	a := new(Athlete)
 	err := row.Scan(
-			&a.ResultsBib,
-			&a.ResultsFirstName,
-			&a.ResultsLastName,
-			&a.ResultsTime,
-			&a.ResultsGunTime,
-		)
+		&a.ResultsBib,
+		&a.ResultsFirstName,
+		&a.ResultsLastName,
+		&a.ResultsTime,
+		&a.ResultsGunTime,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -211,12 +210,12 @@ func (s *SqliteStore) GetRecordByBib(bib string) (*Athlete, error) {
 	res := s.db.QueryRow(query, bib)
 	a := new(Athlete)
 	err := res.Scan(
-			&a.ResultsBib,
-			&a.ResultsFirstName,
-			&a.ResultsLastName,
-			&a.ResultsTime,
-			&a.ResultsGunTime,
-		)
+		&a.ResultsBib,
+		&a.ResultsFirstName,
+		&a.ResultsLastName,
+		&a.ResultsTime,
+		&a.ResultsGunTime,
+	)
 	if err != nil {
 		return nil, err
 	}
