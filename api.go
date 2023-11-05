@@ -3,10 +3,10 @@ package main
 import (
 	"embed"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"strconv"
-	"text/template"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -78,6 +78,7 @@ func (s *APIServer) handleSearchBib(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Println("error", err)
 	}
+
 	var htmlStr string
 	if a == nil {
 		htmlStr = fmt.Sprintf(`
